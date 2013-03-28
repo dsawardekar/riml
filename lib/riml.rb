@@ -19,7 +19,15 @@ module Riml
   end
 
   # compile nodes (or tokens or code or file) into output code
-  def self.compile(input, parser = Parser.new, compiler = Compiler.new)
+  def self.compile(input, parser = Parser.new, compiler = Compiler.new, &block)
+    # setup compiler
+    compiler.parser = parser
+    block.call(compiler) if block
+
+    if compiler.link_files.any?
+      resolve_links(compiler)
+    end
+
     if input.is_a?(Nodes)
       nodes = input
     elsif input.is_a?(String) || input.is_a?(Array)
@@ -30,7 +38,7 @@ module Riml
     else
       raise ArgumentError, "input must be nodes, tokens, code or file, is #{input.class}"
     end
-    compiler.parser = parser
+
     output = compiler.compile(nodes)
     return output unless input.is_a?(File)
     write_file(output, input.path)
@@ -40,14 +48,14 @@ module Riml
   end
 
   # expects `file_names` to be readable files
-  def self.compile_files(*filenames)
+  def self.compile_files(*filenames, &block)
     if filenames.size > 1
       threaded_compile_files(*filenames)
     elsif filenames.size == 1
       fname = filenames.first
       f = File.open(fname)
       # `compile` will close file handle
-      compile(f)
+      compile(f, Parser.new, Compiler.new, &block)
     else
       raise ArgumentError, "need filenames to compile"
     end
@@ -75,6 +83,27 @@ module Riml
   end
 
   private
+
+  def self.resolve_links(compiler)
+    compiler.linking = true
+    compiler.link_files.each do |fname|
+      source = File.read(fname)
+      # build ast
+      compiler.compile(compiler.parser.parse(source))
+      # linking 'riml_include'd files that appear in the source code first
+      while included_fname = compiler.link_include_files.shift
+        source = File.read(included_fname)
+        compiler.compile(compiler.parser.parse(source))
+      end
+      # linking 'riml_sourced'd files that appear in the source code first
+      while sourced_fname = compiler.compile_queue.shift
+        source = File.read(sourced_fname)
+        compiler.compile(compiler.parser.parse(source))
+      end
+    end
+  ensure
+    compiler.linking = false
+  end
 
   def self.threaded_compile_files(*filenames)
     threads = []

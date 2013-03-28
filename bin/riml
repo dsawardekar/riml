@@ -18,6 +18,7 @@ module Riml
       options = OpenStruct.new
       options.compile_files = []
       options.check_syntax_files = []
+      options.link_files = []
       options.repl = false
       options.vi_readline = false
 
@@ -36,6 +37,10 @@ module Riml
 
         opts.on("-k", "--check FILES", Array, "Checks syntax of file(s). Because Riml is (almost) a superset of VimL, this can be used to check VimL's syntax as well.") do |filenames|
           append_filenames_to_list_if_all_exist(options.check_syntax_files, *filenames)
+        end
+
+        opts.on("-l", "--link FILES", Array, "grabs classes from Riml files without compiling the file, so that the compiled file can reference these classes.") do |filenames|
+          append_filenames_to_list_if_all_exist(options.link_files, *filenames)
         end
 
         opts.on("-t", "--source-path PATH", "Path riml uses for `riml_source` and `riml_include` to find files. Defaults to pwd.") do |path|
@@ -89,7 +94,9 @@ module Riml
         if options.stdio
           puts Riml.compile($stdin.read)
         elsif options.compile_files.any?
-          Riml.compile_files(*options.compile_files)
+          Riml.compile_files(*options.compile_files) do |compiler|
+            compiler.link_files.concat(options.link_files)
+          end
         elsif options.check_syntax_files.any?
           files = options.check_syntax_files
           Riml.check_syntax_files(*files)

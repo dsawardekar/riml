@@ -54,4 +54,14 @@ class BinRimlTest < Riml::TestCase
     refute err.empty?
     assert out.empty?
   end
+
+  test "allows linking to files with -l option to grab classes from them without compiling" do
+    Dir.chdir(File.expand_path('../', __FILE__)) do
+      with_file_cleanup('./me.vim') do
+        assert system("#{EXEC} -c me.riml -l person.riml")
+        assert File.exists?('./me.vim')
+        refute File.exists?('./person.vim')
+      end
+    end
+  end
 end

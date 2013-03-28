@@ -513,10 +513,16 @@ module Riml
             error_msg = %Q(riml_include error, has to be called at top-level)
             raise IncludeNotTopLevel, error_msg
           end
-          node.each_existing_file! do |file|
-            full_path = File.join(Riml.source_path, file)
-            riml_src = File.read(full_path)
-            node.compiled_output << root_node(node).current_compiler.compile_include(riml_src, file)
+          if root_node(node).current_compiler.linking?
+            node.each_existing_file! do |file|
+              root_node(node).current_compiler.link_include_files << file
+            end
+          else
+            node.each_existing_file! do |file|
+              full_path = File.join(Riml.source_path, file)
+              riml_src = File.read(full_path)
+              node.compiled_output << root_node(node).current_compiler.compile_include(riml_src, file)
+            end
           end
           return node.compiled_output
         end
@@ -668,6 +674,17 @@ module Riml
     def sourced_files_compiled
       @sourced_files_compiled ||= []
     end
+
+    def link_files
+      @link_files ||= []
+    end
+
+    def link_include_files
+      @link_include_files ||= []
+    end
+
+    attr_accessor :linking
+    alias linking? linking
 
     def compile_include(source, from_file)
       root_node = parser.parse(source, parser.ast_rewriter, from_file)
