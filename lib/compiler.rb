@@ -8,9 +8,11 @@ module Riml
     # Base abstract visitor
     class Visitor
       attr_writer :propagate_up_tree
+      attr_accessor :namespace
 
       def initialize(options={})
         @propagate_up_tree = options[:propagate_up_tree]
+        @namespace = options[:namespace]
       end
 
       def visit(node)
@@ -24,6 +26,7 @@ module Riml
       end
 
       def visitor_for_node(node, params={})
+        params[:namespace] = namespace
         Compiler.const_get("#{node.class.name.split('::').last}Visitor").new(params)
       end
     end
@@ -37,7 +40,7 @@ module Riml
         node.compiled_output << "!" if UnlessNode === node
 
         node.condition.accept(condition_visitor)
-        node.body.accept(NodesVisitor.new(:propagate_up_tree => false))
+        node.body.accept(NodesVisitor.new(:propagate_up_tree => false, :namespace => namespace))
 
         node.body.compiled_output.each_line do |line|
           outdent = line =~ /\A(\s*)(else\s*|elseif .+)$/
@@ -77,7 +80,7 @@ module Riml
         node.compiled_output << "!" if UntilNode === node
         node.condition.accept visitor_for_node(node.condition)
 
-        node.body.accept NodesVisitor.new(:propagate_up_tree => false)
+        node.body.accept NodesVisitor.new(:propagate_up_tree => false, :namespace => namespace)
 
         node.body.compiled_output.each_line do |line|
           node.compiled_output << node.indent + line
@@ -439,11 +442,11 @@ module Riml
           node.name.accept(visitor_for_node(node.name))
           node.name.compiled_output
         else
-          node.name
+          "#{namespace}#{node.name}"
         end << "(#{params.join(', ')})"
         declaration << (node.keywords.empty? ? "\n" : " #{node.keywords.join(' ')}\n")
         node.expressions.parent_node = node
-        node.expressions.accept NodesVisitor.new(:propagate_up_tree => false)
+        node.expressions.accept NodesVisitor.new(:propagate_up_tree => false, :namespace => namespace)
 
         body = ""
         unless node.expressions.compiled_output.empty?
@@ -613,7 +616,7 @@ module Riml
         node.in_expression.accept(visitor_for_node(node.in_expression))
         node.expressions.parent_node = node
         node.expressions.accept(EstablishScopeVisitor.new(:scope => node.to_scope))
-        node.expressions.accept(NodesVisitor.new :propagate_up_tree => false)
+        node.expressions.accept(NodesVisitor.new :propagate_up_tree => false, :namespace => namespace)
         body = node.expressions.compiled_output
         body.each_line do |line|
           node.compiled_output << node.indent + line
@@ -718,7 +721,7 @@ module Riml
     class ClassDefinitionNodeVisitor < Visitor
       def compile(node)
         node.expressions.parent_node = node
-        node.expressions.accept(NodesVisitor.new)
+        node.expressions.accept(NodesVisitor.new(:namespace => namespace))
         node.compiled_output
       end
     end
@@ -753,12 +756,13 @@ module Riml
     end
 
     attr_accessor :output_dir
+    attr_accessor :namespace
 
     # compiles nodes into output code
     def compile(root_node)
       root_node.extend CompilerAccessible
       root_node.current_compiler = self
-      root_node.accept(NodesVisitor.new)
+      root_node.accept(NodesVisitor.new(:namespace => namespace))
       root_node.compiled_output
     end
 

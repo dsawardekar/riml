@@ -64,6 +64,9 @@ module Riml
   def self.compile_files(*filenames)
     parser, compiler = Parser.new, Compiler.new
 
+    # This would come from a command line --ns switch like -o
+    compiler.namespace = 'Speckle'
+
     if filenames.last.is_a?(Hash)
       opts = filenames.pop
       if dir = opts[:output_dir]
@@ -79,6 +82,7 @@ module Riml
         else
           _parser, _compiler = Parser.new, Compiler.new
           _compiler.output_dir = compiler.output_dir
+          _compiler.namespace = compiler.namespace
         end
         threads << Thread.new do
           f = File.open(fname)
