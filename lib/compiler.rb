@@ -452,6 +452,7 @@ module Riml
           end
         end
         node.compiled_output = declaration << body << "endfunction\n"
+        node.compiled_output << "\n"
       end
 
       private
