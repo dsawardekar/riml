@@ -1,0 +1,9 @@
+class Shape
+  def initialize()
+    self.is_shape = true
+  end
+
+  defm to_s()
+    return 'Shape'
+  end
+end

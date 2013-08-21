@@ -1,0 +1,9 @@
+riml_include 'shape.riml'
+riml_include 'rectangle.riml'
+
+def main()
+  rectangle = new Rectangle(10, 10)
+  echomsg rectangle.to_s()
+end
+
+main()

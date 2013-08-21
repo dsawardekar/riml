@@ -1,0 +1,12 @@
+class Rectangle < Shape
+  def initialize(width, height)
+    super()
+
+    self.width = width
+    self.height = height
+  end
+
+  defm to_s()
+    return "Rectangle(#{self.width}x#{self.height})"
+  end
+end
